@@ -1,174 +1,163 @@
-import os, json, pathlib, argparse, re
-from typing import List, Dict, Tuple, Iterable
+import os
+import json
+import argparse
+import pathlib
+from typing import List, Dict
 
 from dotenv import load_dotenv
 load_dotenv()
 
+# LangChain / OpenAI wrappers
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.documents import Document
-from langchain_openai import ChatOpenAI
-from rag_faiss import load_faiss, build_chain  # uses your existing code
 
-# -----------------------------
-# Utility: simple text cleanup
-# -----------------------------
-def norm(s: str) -> str:
-    return re.sub(r"\s+", " ", s or "").strip().lower()
+# Our local RAG bits
+from rag_faiss import load_faiss, build_chain  # reuses your existing index + chain builder
 
-# -----------------------------
-# Load gold queries
-# -----------------------------
-def load_gold(path: str) -> List[Dict]:
-    items = []
+# RAGAS
+# pip install ragas datasets
+from ragas import evaluate
+from ragas.metrics import (
+    faithfulness,
+    answer_relevancy,
+    context_precision,
+    context_recall,
+    answer_correctness,
+)
+from datasets import Dataset
+
+
+def _log(msg: str):
+    print(f"[ragas] {msg}")
+
+
+def load_gold_any(path: str) -> List[Dict]:
+    """
+    Load a JSONL gold file. Supports two styles:
+      1) Retrieval-only: {"query": "...", "relevant": ["titleA", "titleB"]}
+      2) Generation gold: {"query": "...", "expected": "reference answer"}
+         - 'expected' becomes ground_truth for RAGAS (wrapped as a 1-item list).
+    """
+    rows: List[Dict] = []
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
-            if not line.strip():
+            line = line.strip()
+            if not line:
                 continue
             obj = json.loads(line)
-            # required keys: query, relevant (list of titles)
-            obj["query"] = obj["query"].strip()
-            obj["relevant"] = [t.strip() for t in obj.get("relevant", [])]
-            items.append(obj)
-    return items
+            q = obj.get("query", "").strip()
+            expected = obj.get("expected", None)
+            relevant = obj.get("relevant", [])
+            rows.append({"query": q, "expected": expected, "relevant": relevant})
+    return rows
 
-# -----------------------------
-# Retrieval metrics at k
-# -----------------------------
-def precision_recall_f1_at_k(
-    gold: List[Dict],
-    retrieved_titles: List[List[str]],
-    k: int
-) -> Tuple[float, float, float]:
+
+def run_ragas_eval(gold_path: str, k: int = 4) -> Dict:
     """
-    gold[i]["relevant"] : list of titles that should be retrieved for query i
-    retrieved_titles[i] : top-k titles returned by retriever for query i
+    Build a RAGAS dataset by running your retriever + generator for each gold query, then
+    compute RAGAS metrics. If the gold file contains 'expected', we also include
+    answer_correctness. Otherwise, we skip it.
     """
-    assert len(gold) == len(retrieved_titles)
-    precs, recs, f1s = [], [], []
-    for i in range(len(gold)):
-        gold_set = set(map(norm, gold[i]["relevant"]))
-        got_set  = set(map(norm, retrieved_titles[i][:k]))
-        tp = len(gold_set & got_set)
-        fp = len(got_set - gold_set)
-        fn = len(gold_set - got_set)
-
-        prec = tp / (tp + fp) if (tp + fp) else 0.0
-        rec  = tp / (tp + fn) if (tp + fn) else 0.0
-        f1   = 2*prec*rec / (prec+rec) if (prec+rec) else 0.0
-
-        precs.append(prec); recs.append(rec); f1s.append(f1)
-    return sum(precs)/len(precs), sum(recs)/len(recs), sum(f1s)/len(f1s)
-
-# -----------------------------
-# Faithfulness (two options)
-# -----------------------------
-def faithfulness_heuristic(answer: str, context_docs: List[Document]) -> float:
-    """
-    Cheap heuristic: proportion of answer sentences that share
-    at least one 5+ char n-gram with the concatenated context.
-    Not perfect, but works as a quick proxy without LLM judging.
-    """
-    import nltk  # optional: pip install nltk (only if you don’t already have it)
-    try:
-        nltk.data.find("tokenizers/punkt")
-    except LookupError:
-        nltk.download("punkt", quiet=True)
-
-    ctx = norm(" ".join(d.page_content for d in context_docs))
-    sents = [norm(s) for s in nltk.sent_tokenize(answer)]
-    if not sents:
-        return 0.0
-
-    def supported(sent: str) -> bool:
-        toks = [t for t in re.split(r"[^a-z0-9]+", sent) if len(t) >= 5]
-        # any token >=5 chars present in context ⇒ weak support
-        return any(t in ctx for t in toks)
-
-    hits = sum(1 for s in sents if supported(s))
-    return hits / len(sents)
-
-def faithfulness_llm(answer: str, context_docs: List[Document], model: str = None) -> float:
-    """
-    LLM-as-judge: ask the model to score if the answer is grounded
-    only in the provided context (0–1). Default uses your CHAT_MODEL.
-    """
-    model = model or os.getenv("CHAT_MODEL", "gpt-4o-mini")
-    judge = ChatOpenAI(model=model, temperature=0)  # deterministic judge
-
-    context = "\n---\n".join(d.page_content for d in context_docs[:6])  # cap context
-    prompt = (
-        "You are a strict evaluator of 'faithfulness'. "
-        "Given a user answer and the provided context, score from 0.0 to 1.0 "
-        "how well the answer is *fully supported* by the context without introducing unsupported claims.\n\n"
-        f"Context:\n{context}\n\n"
-        f"Answer:\n{answer}\n\n"
-        "Return ONLY a number between 0.0 and 1.0."
-    )
-    resp = judge.invoke(prompt)
-    # extract float safely
-    m = re.search(r"(\d+(?:\.\d+)?)", resp.content or "")
-    try:
-        v = float(m.group(1)) if m else 0.0
-    except:
-        v = 0.0
-    return max(0.0, min(1.0, v))
-
-# -----------------------------
-# Run evaluation
-# -----------------------------
-def run_eval(
-    gold_path: str,
-    k: int = 4,
-    judge: str = "heuristic"  # "heuristic" | "llm"
-):
-    # Load index + chain from your app
+    # Load FAISS + chain from your app
     db = load_faiss()
     retriever = db.as_retriever(search_kwargs={"k": k})
     chain = build_chain(retriever)
 
-    gold = load_gold(gold_path)
+    rows = load_gold_any(gold_path)
 
-    retrieved_titles_all: List[List[str]] = []
-    faith_scores: List[float] = []
+    questions: List[str] = []
+    contexts: List[List[str]] = []
+    answers: List[str] = []
+    references: List[str] = []
+    ground_truths: List[List[str]] = []
 
-    for item in gold:
-        q = item["query"]
-        # 1) retrieval for metrics
-        docs = retriever.get_relevant_documents(q)
-        titles = [d.metadata.get("title", "") for d in docs]
-        retrieved_titles_all.append(titles)
+    has_ground_truth = any(
+        (r.get("expected") is not None) and str(r.get("expected")).strip() != ""
+        for r in rows
+    )
 
-        # 2) generation + faithfulness
+    for r in rows:
+        q = r["query"]
+        # retrieve
+        docs: List[Document] = retriever.invoke(q)
+        ctx_texts = [d.page_content for d in docs]
+
+        # generate
         out = chain.invoke(q)
-        answer = out.content or ""
+        ans = (out.content or "").strip() if hasattr(out, "content") else str(out).strip()
 
-        if judge == "llm":
-            faith = faithfulness_llm(answer, docs)
-        else:
-            faith = faithfulness_heuristic(answer, docs)
-        faith_scores.append(faith)
+        questions.append(q)
+        contexts.append(ctx_texts)
+        answers.append(ans)
+        gt = r.get("expected")
+        ref = str(gt).strip() if (gt is not None and str(gt).strip() != "") else ""
+        references.append(ref)
+        # Keep both fields for RAGAS version compatibility:
+        # - 'reference' as a string (may be "")
+        # - 'ground_truth' as a list[str] (use [""] when empty)
+        ground_truths.append([ref] if ref != "" else [""])
 
-    p, r, f1 = precision_recall_f1_at_k(gold, retrieved_titles_all, k)
-    faith_avg = sum(faith_scores) / len(faith_scores)
-
-    return {
-        "k": k,
-        "precision@k": round(p, 4),
-        "recall@k": round(r, 4),
-        "f1@k": round(f1, 4),
-        "faithfulness": round(faith_avg, 4),
-        "n": len(gold),
+    data = {
+        "question": questions,
+        "contexts": contexts,
+        "answer": answers,
+        "reference": references,       # string per sample ("" if unknown)
+        "ground_truth": ground_truths, # list[str], kept for compatibility
     }
+    ds = Dataset.from_dict(data)
+
+    # LLM + embeddings for RAGAS
+    chat_model = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+    embed_model = os.getenv("EMBED_MODEL", "text-embedding-3-small")
+    llm = ChatOpenAI(model=chat_model, temperature=0)
+    emb = OpenAIEmbeddings(model=embed_model)
+
+    # Choose metrics; include answer_correctness only if we have ground truth
+    metrics = [
+        faithfulness,
+        answer_relevancy,
+        context_precision,
+        context_recall,
+    ]
+    if has_ground_truth:
+        metrics.append(answer_correctness)
+
+    _log(f"Evaluating {len(questions)} samples at k={k} using metrics: "
+         + ", ".join(m.name for m in metrics))
+
+    result = evaluate(dataset=ds, metrics=metrics, llm=llm, embeddings=emb)
+
+    # Convert to a compact summary + show per-sample path for debugging
+    df = result.to_pandas()
+    summary = {
+        col: float(df[col].mean())
+        for col in df.columns
+        if col not in ("question", "answer", "contexts", "ground_truth", "reference")
+    }
+    summary["n"] = len(df)
+
+    return {"summary": summary, "details": df.to_dict(orient="records")}
+
 
 def main():
-    ap = argparse.ArgumentParser(description="Evaluate RAG: Precision/Recall/F1 and Faithfulness")
-    ap.add_argument("--gold", default="tests/gold.jsonl", help="Path to JSONL gold file")
+    ap = argparse.ArgumentParser(description="Evaluate RAG generation with RAGAS")
+    ap.add_argument("--gold", default="tests/gold_gen.jsonl",
+                    help="Path to JSONL gold file. Supports 'expected' for ground truth.")
     ap.add_argument("--k", type=int, default=4, help="Top-k for retrieval")
-    ap.add_argument("--judge", choices=["heuristic","llm"], default="heuristic",
-                    help="Faithfulness judge type")
+    ap.add_argument("--out", type=str, default="ragas_report.json",
+                    help="Write a JSON report with summary and per-sample details")
     args = ap.parse_args()
 
-    metrics = run_eval(args.gold, k=args.k, judge=args.judge)
-    print(json.dumps(metrics, indent=2))
+    report = run_ragas_eval(args.gold, k=args.k)
+
+    # Print summary nicely
+    print(json.dumps(report["summary"], indent=2))
+
+    # Persist full report
+    out_path = pathlib.Path(args.out)
+    out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    _log(f"Wrote report → {out_path.resolve()}")
+
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,3 @@
+{"query":"Where did he work at prior to TCS?","expected":"He worked at TrialScope before TCS.","relevant":"resume.txt"}
+{"query":"Where does Rachit work?","expected":"Rachit works at Tata Consultancy Services (TCS).","relevant":"resume.txt"}
+{"query":"Can you provide information about some skills that he has?","expected":"Rachit has skills in Python, data engineering, AI/ML, and cloud technologies.","relevant":"resume.txt"}

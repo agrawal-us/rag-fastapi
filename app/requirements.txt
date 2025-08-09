@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+faiss-cpu
+numpy
+pydantic
+pydantic-settings
+openai>=1.30.0
+pypdf
+tiktoken

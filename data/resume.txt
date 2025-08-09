@@ -1,0 +1,64 @@
+Rachit Agrawal
+      Seeking Software Engineer roles in NYC/SF area | 908-565-1682 | RachitAgrawal.us@gmail.com | Citizenship: US
+
+Rachit is a senior backend & data engineer who delivered cloud-native platforms and enterprise apps for major big tech, pharma and financial services clients at Tata Consultancy Services, earning the “TCS Gem” award and multiple repeat project extensions.
+
+He designs low-latency, high-throughput services and data pipelines on AWS (Kubernetes/EKS, Lambda, Glue), pairing Spark + Snowflake warehousing to exceed stringent SLAs for Fortune-500 clients. His toolkit spans Kafka streaming, Django/Mulesoft APIs, Airflow orchestration, and end-to-end CI/CD.
+
+Rachit augments this engineering depth with hands-on AI/LLM integration and advanced mathematics, having collaborated with research teams to implement predictive and ML models. A proven tech lead, he bridges onsite & offshore engineers, users, and business stakeholders.
+
+Technical Skills:
+Languages: Python (PySpark, Pandas, numpy, Flask, Django), Java (Spring, Hibernate, REST), C# (WPF, ASP.Net, Web Services), Objective-C, C
+Databases: Snowflake, Spark, PostgreSQL, NoSQL (Hive, Cassandra), SQL Server, Oracle, Athena, MySQL, Redis
+Business Intelligence: Tableau (Data Analytics & Dashboards), Tableau Prep
+Web Development: MuleSoft, JavaScript (Angular/React/React-on-Rails), HTML, JSON, DevExpress
+Cloud Architectures: Amazon Web Services, Google Cloud Platform
+AWS: S3, EC2, API Gateway, Lambda, AWS CI/CD, DynamoDB, SageMaker, Glue, AWS Kinesis & Kafka, Athena, AWS RDS, CloudWatch, CloudFormation
+Data Science: Neural Networks (MLP, tuning Encoder/Decoder models), LLM APIs (OpenAI & HuggingFace), LangChain, Embeddings (Vector DBs & RAG), Keras, PyTorch.
+Math: Advanced Calculus & Statistics, Discrete Mathematics, Linear Algebra, Neural Nets related techniques (activation functions, gradient descent), Markov & Bayesian Models.
+
+Tata Consultancy Services (TCS), San Jose: Sept, 2018 to Present		   Backend & Data Engineer
+
+Data Engineering Expertise
+Proficient in cloud-native data platforms including Snowflake on AWS, leveraging serverless computing (Lambda, Fargate), and big data technologies (Hadoop, Spark, Hive) for scalable data processing.
+Architected scalable data pipelines using Python, Apache Spark and AWS Glue, optimizing throughput and cost-efficiency for multi-petabyte datasets.
+Designed data schemas and partitioning strategies in Snowflake and Hive, improving query performance by 40% for analytics workloads.
+Developed end-to-end data orchestration systems with Apache Airflow, integrating real-time monitoring and fault-tolerant workflows.
+Implemented real-time data streaming solutions using Python, AWS Kinesis and Apache Kafka, enabling low-latency data processing for analytics and machine learning pipelines.
+Engineered and maintained data pipelines using Apache Airflow, integrating with AWS services and optimizing performance for large-scale data processing workflows.
+Built and published customized interactive reports and dashboards, and implemented report scheduling using Tableau Server.
+
+Backend Development & API Services
+Designed microservices architectures using Python (Django) and AWS ECS, ensuring modularity and resilience for cloud-native applications.
+Implemented secure API frameworks with OAuth and AWS API Gateway, supporting versioning and rate-limiting for enterprise clients.
+Led CI/CD pipeline design using AWS CodePipeline and Docker, automating deployments and reducing release cycles by 30%.
+Utilized threading and in-memory caching techniques in Django to optimize server performance and reduce response times for high-traffic applications.
+Implemented Redis for distributed caching, enhancing data retrieval speeds and reducing database load in production environments.
+Developed RESTful APIs and integrated real-time features using WebSockets for live data updates in client-facing applications.
+Integrated Kafka for event-driven architectures, facilitating asynchronous communication between microservices and ensuring reliable message delivery.
+Built and maintained API gateways using Mulesoft, enabling secure data exposure and aggregation for mobile applications.
+
+AI & Data Science Contributions
+For several years worked in the AI Research Team that included 6 PhDs collaborating in preparing & analyzing data for supply chain optimization and implementing mathematical models into code via Python.
+Gained working knowledge of HuggingFace and OpenAI APIs, applying prompt engineering techniques to enhance natural language processing capabilities in projects for biotech drug research and trials.
+Experimented with Retrieval-Augmented Generation (RAG) models to improve information retrieval and generation in domain-specific contexts, contributing to the development of intelligent assistants for internal use.
+Designed and implemented data analytics solutions using machine learning algorithms, focusing on regression and classification problems to support decision-making in supply chain management.
+
+DevOps and Agile Methodologies
+DevOps Practices: Designed and implemented CI/CD pipelines using AWS CodePipeline, reducing deployment times by 40% and enhancing system reliability through monitoring with CloudWatch.
+CloudFormation: Utilized AWS CloudFormation to automate infrastructure provisioning and management, ensuring consistency and scalability across environments.
+Agile Methodologies: Managed a team of 30 offshore developers at TCS, coordinating support tasks such as database management through daily Agile standups and Kanban boards, ensuring efficient execution and timely resolution.
+TrialScope, Jersey City, NJ: May 18th, 2016 to July 18th, 2016						TrialScope a leading provider of clinical trial & compliance systems for Pharmaceutical industry
+Part of the SCRUM development team which included software engineers, a technical architect, a business analyst, and a product owner. Participated in all aspects of the software lifecycle including database batch processes, UI enhancements, and test processes as an integral member of the team.
+Developed and executed manual test scripts, fixed bugs in C#.NET in their PharmaCM product, and created reports using SQL Server Reporting Services.
+
+Brandywine Global Asset Management, Philadelphia, PA: May 19th, 2014 to Aug 15th, 2014
+Brandywine is a financial services firm with $75 Billion dollars in assets under management
+Designed a 3-Tier ASP.NET application to capture all business metadata of the company. This included Positions, Risk, Trades, and Performance Attribution metadata for Brandywine Funds. This metadata is used by business and other applications to have a consistent user definition and usage of business data.
+Developed the UI using C# WebForms and DevExpress (3rd Party Library). Also developed a Web Services middle-tier using WCF, designed tables and wrote SQL queries and stored procedures for SQL Server.
+
+Education
+Thomas Edison State University, Trenton, NJ 				BA Computer Science (June 2018)
+Purdue University, West Lafayette, IN					BS Computer Science (2013 to 2016)
+Rutgers Preparatory School, Somerset, NJ				High School Diploma (2013)
+
